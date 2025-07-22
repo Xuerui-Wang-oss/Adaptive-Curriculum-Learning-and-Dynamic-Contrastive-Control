@@ -11,7 +11,7 @@
 ## Instruction to run the code
 If you want to use GPU, just add the flag `--cuda` **(Not Recommended, Better Use CPU)**.
 If you want to only use GPU for LSTM in contrastive learning, just add the flag '--hybrid-gpu'**(Not Recommended, Better Use CPU)**.
-```
+
 1. train the **FetchPush-v1**:
 ```bash
 mpirun -np 16 python -u train.py --env-name='FetchPush-v1' 2>&1 | tee push.log
