@@ -12,7 +12,7 @@ class her_sampler:
 
         # 用于课程学习
         self.lambda_starter_quality=lambda_starter_quality
-        self.learning_rate=learning_rates
+        self.learning_rate=learning_rate
 
         # Set goal_type
         self.goal_type = goal_type
