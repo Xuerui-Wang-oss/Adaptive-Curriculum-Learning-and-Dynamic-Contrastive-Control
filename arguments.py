@@ -10,7 +10,6 @@ def get_args():
     # the environment setting
     parser.add_argument('--env-name', type=str, default='FetchReach-v1', help='the environment name')
     
-    # 添加goal_type参数，默认为'auto'表示自动确定
     parser.add_argument('--goal-type', type=str, default='auto', 
                         help='goal type: "full" for FetchEnv and HandManipulateEgg, "rotate" for HandManipulateBlock and HandManipulatePen')
     
@@ -45,7 +44,6 @@ def get_args():
 
     args = parser.parse_args()
     
-    # 处理自动设置goal_type的情况
     if args.goal_type == 'auto':
         if 'Fetch' in args.env_name:
             args.goal_type = 'full'
@@ -58,7 +56,7 @@ def get_args():
         elif 'HandReach' in args.env_name:
             args.goal_type = 'full'
         else:
-            # 默认使用完整目标
+            # Default to 'full' if no specific goal type is found
             args.goal_type = 'full'
 
     return args

@@ -45,7 +45,7 @@ class ddpg_agent:
         self.actor_target_network.load_state_dict(self.actor_network.state_dict())
         self.critic_target_network.load_state_dict(self.critic_network.state_dict())
 
-        # 创建轨迹编码器
+        # Create trajectory encoder
         self.trajectory_encoder = TrajectoryEncoder(
             goal_dim=env_params['goal'], 
             hidden_dim=64, 
@@ -53,7 +53,7 @@ class ddpg_agent:
             goal_type=self.goal_type)
 
         if self.args.cuda and not self.hybrid_mode:
-            # 完全GPU模式
+            # Full GPU mode
             self.actor_network.cuda()
             self.critic_network.cuda()
             self.actor_target_network.cuda()
@@ -61,11 +61,11 @@ class ddpg_agent:
             self.trajectory_encoder.cuda()
 
         elif self.hybrid_mode and torch.cuda.is_available():
-            # 混合模式：只有LSTM在GPU
+            # Hybrid GPU mode: only LSTM on GPU
             self.trajectory_encoder.cuda()
             # print("[Hybrid Mode] LSTM on GPU, Actor/Critic on CPU")
         else:
-            # 完全CPU模式
+            # Full CPU mode
             # print("[CPU Mode] All components on CPU")
             pass
 
@@ -73,7 +73,6 @@ class ddpg_agent:
         self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr=self.args.lr_actor)
         self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
 
-        # 轨迹编码器的优化器
         self.encoder_optim = torch.optim.Adam(self.trajectory_encoder.parameters(), lr=0.001)
 
         # her sampler
@@ -83,13 +82,12 @@ class ddpg_agent:
                                       goal_type=self.goal_type)
         
         # Contrastive Leaarning Parameter
-        self.contrastive_start_size=50 #启动对比学习的最小轨迹数
-        self.contrastive_train_freq=5 #每隔多少次更新网络训练一次对比学习
-        self.contrastive_lambda = 0.1 #对比学习损失的权重
-        self.enable_contrastive = True #是否启用对比学习
+        self.contrastive_start_size = 50  # Minimum number of trajectories to start contrastive learning
+        self.contrastive_train_freq = 5   # Train contrastive learning every N network updates
+        self.contrastive_lambda = 0.1     # Weight of contrastive learning loss
+        self.enable_contrastive = True    # Whether to enable contrastive learning
 
-        
-        # 确定success rate的阈值
+        # Determine success rate thresholds
         self.her_module.adjust_thresholds_for_environment(self.args.env_name)
 
         self.current_success_rate = None
@@ -102,7 +100,7 @@ class ddpg_agent:
         self.her_module.set_trajectory_encoder(self.trajectory_encoder)
         # print(f"[INIT] trajectory_encoder set: {self.her_module.trajectory_encoder is not None}")
     
-        # 将replay_buffer的阈值
+
         self.buffer.min_trajectories_for_contrastive = self.contrastive_start_size
         # print(f"[INIT] Synchronized min_trajectories: {self.buffer.min_trajectories_for_contrastive}")
 
@@ -132,14 +130,13 @@ class ddpg_agent:
         else:
             return 'full'
     
-    # 每个周期(epoch)内会进行多个采集周期,在每个cycle里又执行多个采集任务
-    # 每个rollout中，智能体与环境交互,按时间步收集完整的episode
+    # learn the agent
     def learn(self):
         """
         train the network
 
         """
-        # 当前的时间
+        # Current step and update count
         current_step=0
         update_count=0
 
@@ -186,21 +183,18 @@ class ddpg_agent:
                     mb_g.append(ep_g)
                     mb_actions.append(ep_actions)
 
-                # 将收集到的episode数据转换成numpy数组
                 mb_obs = np.array(mb_obs)
                 mb_ag = np.array(mb_ag)
                 mb_g = np.array(mb_g)
                 mb_actions = np.array(mb_actions)
 
                 # store the episodes
-                # mb_g是原目标
-                # 将收集到的数据存入 replay buffer 中
                 self.buffer.store_episode([mb_obs, mb_ag, mb_g, mb_actions])
 
-                # 利用采集的episode数据更新输入数据的归一化器
+                # Update input data normalizer with collected episode data
                 self._update_normalizer([mb_obs, mb_ag, mb_g, mb_actions])
 
-                # 检查是否启用对比学习
+                # Check if contrastive learning is enabled
                 if self.enable_contrastive and self.buffer.current_size >= self.contrastive_start_size:
                     self.her_module.enable_contrastive_sampling()
 
@@ -214,7 +208,7 @@ class ddpg_agent:
                 self._soft_update_target_network(self.critic_target_network, self.critic_network)
 
 
-                # 更新current_step
+                # Update current_step
                 current_step += self.args.num_rollouts_per_mpi * self.env_params['max_timesteps']
 
             # Adjust learning rate
@@ -227,7 +221,7 @@ class ddpg_agent:
                 #     print(f"[ADAPTIVE] Success Rate: {success_rate:.3f} -> Lambda LR: {updated_lr:.6f}")
 
             if MPI.COMM_WORLD.Get_rank() == 0:
-                # 获取学习率信息
+                # Gain the learning rate information
                 lr_info = self.her_module.get_learning_rate_info()
                     
                 current_lambda_lr = lr_info.get('current_lambda_lr', lr_info.get('current_lr', 0.01))
@@ -240,18 +234,6 @@ class ddpg_agent:
                 
                 torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network.state_dict()], \
                             self.model_path + '/model.pt')
-
-            # Print GPU information
-            # if MPI.COMM_WORLD.Get_rank() == 0:
-            #     if torch.cuda.is_available():
-            #         print(f"GPU is available: {torch.cuda.get_device_name(0)}")
-            #         print(f"Number of GPUs: {torch.cuda.device_count()}")
-            #         if self.args.cuda:
-            #             print("Training will use GPU")
-            #         else:
-            #             print("GPU available but not used (--cuda flag not set)")
-            #     else:
-            #         print("GPU is not available, using CPU")
 
     # pre_process the inputs
     def _preproc_inputs(self, obs, g):
@@ -278,8 +260,7 @@ class ddpg_agent:
         return action
 
     # update the normalizer
-
-    # 进行归一化，可以保证输入数据始终在合适的范围中
+    # Normalization
     def _update_normalizer(self, episode_batch):
         mb_obs, mb_ag, mb_g, mb_actions = episode_batch
         mb_obs_next = mb_obs[:, 1:, :]
@@ -298,21 +279,11 @@ class ddpg_agent:
                        'ag_next': mb_ag_next,
                        }
         
-        # if self.her_module.use_contrastive:
-        #     sampling_func = self.her_module.sample_her_contrastive_transitions
-        # else: 
-        #     sampling_func = self.her_module.sample_her_transitions
         sampling_func=self.her_module.sample_her_transitions
         
         transitions = self.buffer.sample(num_transitions, learning_step=None, 
                                          sampling_func=sampling_func)
         
-        # print(self.her_module.sample_her_transitions)
-        # print("The num_transitions in normalization",num_transitions)
-
-        # k-dpp修改部分
-        # batch_size_fixed=25
-        # transitions = self.her_module.sample_her_transitions(buffer_temp, batch_size_fixed)
 
         obs, g = transitions['obs'], transitions['g']
         # pre process the obs and g
@@ -335,32 +306,21 @@ class ddpg_agent:
             target_param.data.copy_((1 - self.args.polyak) * param.data + self.args.polyak * target_param.data)
 
     # update the network
-    # 策略更新使用batch_size=256
     def _update_network(self, current_step, update_count):
 
-        # 计算当前完成的episode数作为整体训练阶段指标
         learning_step=current_step / (self.args.num_rollouts_per_mpi * self.env_params['max_timesteps'])
 
         lambda_val = self.her_module.dynamic_lambda(learning_step)
-        
-        # 采样函数的选择
+
+        # Sampling function selection
         if self.her_module.use_contrastive:
             sampling_func = self.her_module.sample_her_contrastive_transitions
-            # print('Start Contrastive Learning Stage')
         else:
             sampling_func=self.her_module.sample_her_diversity_transitions
-            # print('Start Curriculum Learning Stage')
 
         # sample the episodes
-        # 调用 self.buffer.sample中的transition,已经是通过sample_func进行完her替换目标的transition
-        transitions = self.buffer.sample(self.args.batch_size, learning_step, 
-                                         sampling_func=sampling_func,lambda_val=lambda_val)
-
-        # print("batch_size",self.args.batch_size)
-
-        # if self.args.cuda and MPI.COMM_WORLD.Get_rank() == 0 and update_count % 100 == 0:
-        #     print(f"[GPU Memory] Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB, "
-        #       f"Cached: {torch.cuda.memory_reserved()/1024**2:.2f} MB")
+        transitions = self.buffer.sample(self.args.batch_size, learning_step,
+                                         sampling_func=sampling_func, lambda_val=lambda_val)
 
         # pre-process the observation and goal
         o, o_next, g = transitions['obs'], transitions['obs_next'], transitions['g']
@@ -389,18 +349,17 @@ class ddpg_agent:
         # Contrastive learning
         if self.enable_contrastive and update_count % self.contrastive_train_freq == 0 and \
            self.buffer.current_size >= self.contrastive_start_size:
-            # 获取临时缓冲区
             temp_buffers = {}
             for key in self.buffer.buffers.keys():
                 temp_buffers[key] = self.buffer.buffers[key][:self.buffer.current_size]
                 
-            # 训练对比学习
+            # Train Encoder Network
             device = next(self.trajectory_encoder.parameters()).device
             total_loss = self.her_module.train_contrastive(temp_buffers, learning_step, device, lambda_val)
             
             if total_loss is not None:
                 # print("Start Stage 2: Contrastive Control")
-                # 对比学习优化
+                # Optimization
                 self.encoder_optim.zero_grad()
                 total_loss.backward()
                 
@@ -414,19 +373,8 @@ class ddpg_agent:
                 else:
                     print(f"[WARNING] Invalid gradient norm: {grad_norm}")
                     self.encoder_optim.zero_grad()
-                
-                # # 打印对比学习损失
-                # if MPI.COMM_WORLD.Get_rank() == 0 and update_count % 100 == 0:
-                #     try:
-                #         lr_info = self.her_module.get_learning_rate_info()
-                #         current_lr = lr_info.get('current_lambda_lr', lr_info.get('current_lr', 'N/A'))
-                #         print(f"[{datetime.now()}] Contrastive Loss: {total_loss.item():.4f}, "
-                #             f"Lambda Learning Rate: {current_lr}, Adaptive Lambda Val: {lambda_val:.6f}")
-                #     except Exception as e:
-                #         print(f"[{datetime.now()}] Contrastive Loss: {total_loss.item():.4f}, "
-                #             f"Lambda Val: {lambda_val:.6f}")
 
-        # 常规RL更新部分
+
         # calculate the target Q value function
         with torch.no_grad():
             # do the normalization
@@ -457,11 +405,6 @@ class ddpg_agent:
         critic_loss.backward()
         sync_grads(self.critic_network)
         self.critic_optim.step()
-
-        # # 记录网络更新结束时的时间和耗时
-        # update_end_time=time.time()
-        # elapsed_time = update_end_time - update_start_time
-        # print(f"[{datetime.now()}] 网络更新完成, 当前step: {current_step}, 耗时: {elapsed_time:.4f} 秒")
 
     # do the evaluation
     def _eval_agent(self):

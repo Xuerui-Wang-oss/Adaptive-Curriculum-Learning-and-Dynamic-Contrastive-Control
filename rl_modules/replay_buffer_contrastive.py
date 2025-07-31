@@ -24,17 +24,15 @@ class replay_buffer:
                         'quality':np.empty([self.size, 1]),
                         }
         
-        # 用于存储轨迹编码
+        # Used to store trajectory encodings
         self.encodings_cache=None
         self.encodings_lambda=None
 
-        # 对比学习相关参数
+        # Contrastive learning parameters
         self.min_trajectories_for_contrastive = 50
 
         # thread lock
         self.lock = threading.Lock()
-        # print("div shape is:",self.buffers['div'].shape)
-        # print("quality shape is:", self.buffers['quality'].shape)
 
     # store the episode
     def store_episode(self, episode_batch):
@@ -51,11 +49,11 @@ class replay_buffer:
             # print("mb_g",mb_g.shape)
             # print("mb_obs",mb_obs.shape)
 
-            # 计算并存储每一条trajectory的多样性和质量性
+            # Calculate and store diversity and quality
             self.buffers['div'][idxs]=self.compute_diversity(mb_ag).reshape(-1,1)
             self.buffers['quality'][idxs] = self.compute_quality(mb_ag, mb_g).reshape(-1,1)
 
-            # 新数据加入后，清除编码缓存
+            # Clear the encodings cache after storing new episodes
             self.clear_encodings_cache()
 
             self.n_transitions_stored += self.T * batch_size
@@ -67,7 +65,7 @@ class replay_buffer:
 
         # print("Calculate the diversity Goal_type:",self.goal_type)
         for i in range(num_trajectory):
-            # 根据goal_type选择合适的特征
+            # Select the trajectory goals based on goal_type
             if self.goal_type == 'full':
                 traj = trajectory_goals[i, :, :]
             elif self.goal_type == 'rotate':
@@ -75,10 +73,8 @@ class replay_buffer:
             else:
                 raise ValueError("Invalid goal_type. Choose 'full' or 'rotate'.")
 
-            # traj = trajectory_goals[i, :, :]  # The trajectory goals
-            # print("The shape of traj:",traj.shape)
             
-            # 对每个目标向量进行归一化
+            # Normalize the trajectory
             norms=np.linalg.norm(traj,axis=1,keepdims=True)
             traj_normalized=traj / (norms + eps)
 
@@ -104,17 +100,17 @@ class replay_buffer:
     
     # Calculate the quality
     def compute_quality(self, achieved_goals, desired_goals):
-        # 计算每个轨迹的质量性（与目标的欧几里得距离）
+        # Calculate the quality of each trajectory (Euclidean distance to the goal)
         final_ag=achieved_goals[:,-1,:]
         final_g = desired_goals[:, -1, :]
 
-        # 根据goal_type选择合适的特征
+        # Select the appropriate features based on goal_type
         if self.goal_type == 'full':
-            ag_feature=final_ag
-            g_feature=final_g
+            ag_feature = final_ag
+            g_feature = final_g
         elif self.goal_type == 'rotate':
-            ag_feature=final_ag[:, 3:]
-            g_feature=final_g[:, 3:]
+            ag_feature = final_ag[:, 3:]
+            g_feature = final_g[:, 3:]
         else:
             raise ValueError("Invalid goal_type. Choose 'full' or 'rotate'.")
 
@@ -166,13 +162,11 @@ class replay_buffer:
         if not self.has_sufficient_trajectories():
             return
             
-        # 如果已有缓存且lambda值匹配，直接返回
         if self.encodings_cache is not None and abs(self.encodings_lambda - lambda_val) < 1e-6:
             return
             
         with torch.no_grad():
             # print("relay_buffer.py goal_type:",self.goal_type)
-            # 准备轨迹数据
             if self.goal_type == 'full':
                 trajectories = torch.tensor(
                     self.buffers['ag'][:self.current_size, :-1, :], 
@@ -186,12 +180,6 @@ class replay_buffer:
             else:
                 raise ValueError("Invalid goal_type. Choose 'full' or 'rotate'.")
 
-            # # 准备轨迹数据
-            # trajectories = torch.tensor(
-            #     self.buffers['ag'][:self.current_size, :-1, :], 
-            #     dtype=torch.float32
-            # )
-
             lambda_tensor = torch.tensor(
                 [[lambda_val]] * self.current_size, 
                 dtype=torch.float32
@@ -201,7 +189,7 @@ class replay_buffer:
                 trajectories = trajectories.to(device)
                 lambda_tensor = lambda_tensor.to(device)
                 
-            # 计算编码
+            # Calculate the encodings
             self.encodings_cache = encoder(trajectories, lambda_tensor)
             self.encodings_lambda = lambda_val
     

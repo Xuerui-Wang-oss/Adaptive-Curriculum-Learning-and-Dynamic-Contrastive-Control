@@ -24,7 +24,6 @@ def get_env_params(env):
     return params
 
 def determine_goal_type(env_name):
-    """根据环境名称确定goal_type"""
     if 'Fetch' in env_name:
         return 'full'
     elif 'HandManipulateEggFull-v0' in env_name:
@@ -34,14 +33,13 @@ def determine_goal_type(env_name):
     elif 'HandManipulatePenRotate-v0' in env_name:
         return 'rotate'
     else:
-        # 默认使用完整目标
+        # Default to 'full' if no specific goal type is found
         return 'full'
 
 def launch(args):
     # create the ddpg_agent
     env = gym.make(args.env_name)
     
-    # 确定goal_type
     if not hasattr(args, 'goal_type'):
         args.goal_type = determine_goal_type(args.env_name)
     

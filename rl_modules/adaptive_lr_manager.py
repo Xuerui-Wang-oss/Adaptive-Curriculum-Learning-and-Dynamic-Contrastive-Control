@@ -9,11 +9,11 @@ class AdaptiveLearningRateManager:
         self.smoothing_factor = smoothing_factor
         self.current_lambda_lr = base_lambda_lr
         
-        # 阈值设置（可根据环境调整）
+        # Threshold settings (can be adjusted according to environment)
         self.low_threshold = low_threshold
         self.high_threshold = high_threshold
         
-        # 记录历史信息用于调试
+        # Record historical information for debugging
         self.success_rate_history = deque(maxlen=50)
         self.lambda_lr_history = deque(maxlen=50)
         
@@ -21,22 +21,22 @@ class AdaptiveLearningRateManager:
 
         self.success_rate_history.append(success_rate)
         
-        # 根据success rate确定目标学习率
+        # Determine target learning rate based on success rate
         if success_rate < self.low_threshold:
-            # 复杂环境：减慢lambda增长，更注重diversity
+            # Complex environment: slow down lambda growth, focus more on diversity
             target_lr = self.base_lambda_lr * 0.5
         elif success_rate <= self.high_threshold:
-            # 中等环境：保持基础学习率
+            # Medium environment: keep base learning rate
             target_lr = self.base_lambda_lr
         else:
-            # 简单环境：加快lambda增长，更注重quality
+            # Simple environment: speed up lambda growth, focus more on quality
             target_lr = self.base_lambda_lr * 2.0
         
-        # 平滑更新：current = 0.3 * target + 0.7 * last
+        # Smooth update: current = 0.3 * target + 0.7 * last
         self.current_lambda_lr = (1 - self.smoothing_factor) * target_lr + \
                                  self.smoothing_factor * self.current_lambda_lr
         
-        # 记录历史
+        # Record history
         self.lambda_lr_history.append(self.current_lambda_lr)
         
         return self.current_lambda_lr
@@ -85,5 +85,3 @@ class AdaptiveLearningRateManager:
         else:
             self.low_threshold = 0.3
             self.high_threshold = 0.6
-        
-        # print(f"low threshold: {self.low_threshold}, high threshold: {self.high_threshold}")
