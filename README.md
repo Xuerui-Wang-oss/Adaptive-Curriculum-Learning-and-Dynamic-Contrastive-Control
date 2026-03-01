@@ -14,7 +14,7 @@ If you only want to use GPU for LSTM in contrastive learning, just add the flag 
 
 ## Environments
 ![Environments](figure/environment.jpg)
-The environments are from OpenAI Gym. They are as follows:
+The environments are from OpenAI Gym(https://robotics.farama.org/). They are as follows:
 - `FetchReach-v1`
 - `FetchPickAndPlace-v1`
 - `HandReach-v0`
@@ -23,6 +23,7 @@ The environments are from OpenAI Gym. They are as follows:
 - `HandManipulatePenRotate-v0`
 
 ## Code Structure
+```text
 ACDC
 |-- DDPG_ACDC
 |   |-- train.py
@@ -31,9 +32,10 @@ ACDC
 |-- SAC_ACDC
 |   |-- train_sac.py
 |   |-- ...
-
+```
 
 ## How to train
+**Note: If you want to train SAC+ACDC, use train_sac.py instead of train.py**
 1. train the **FetchPush-v1**:
 ```bash
 mpirun -np 16 python -u train.py --env-name='FetchPush-v1' 2>&1 | tee push.log
