@@ -14,7 +14,7 @@ If you only want to use GPU for LSTM in contrastive learning, just add the flag 
 
 ## Environments
 ![Environments](figure/environment.jpg)
-The environments are from OpenAI Gym(https://robotics.farama.org/). They are as follows:
+The environments are from OpenAI Gymc(https://robotics.farama.org/). They are as follows:
 - `FetchReach-v1`
 - `FetchPickAndPlace-v1`
 - `HandReach-v0`
