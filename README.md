@@ -33,8 +33,9 @@ ACDC
 |   |-- train_sac.py
 |   |-- ...
 
+
 ## How to train
-1. train the **FetchPush-v1**:
+### 1. train the **FetchPush-v1**:
 ```bash
 mpirun -np 16 python -u train.py --env-name='FetchPush-v1' 2>&1 | tee push.log
 ```
