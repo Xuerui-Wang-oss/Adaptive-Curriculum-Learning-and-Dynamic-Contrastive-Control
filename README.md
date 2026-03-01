@@ -1,4 +1,4 @@
-# ACDC: Adaptive Curriculum and Dynamic Contrastive Control for Goal-Conditioned Reinforcement Learning
+# ACDC: Adaptive Curriculum Planning and Dynamic Contrastive Control for Goal-Conditioned Reinforcement Learning in Robotic Manipulation
 
 ## Requirements
 - python=3.9.21
