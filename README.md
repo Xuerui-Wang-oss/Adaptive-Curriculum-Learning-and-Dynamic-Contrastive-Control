@@ -23,7 +23,6 @@ The environments are from OpenAI Gym. They are as follows:
 - `HandManipulatePenRotate-v0`
 
 ## Code Structure
-```text
 ACDC
 |-- DDPG_ACDC
 |   |-- train.py
@@ -35,7 +34,7 @@ ACDC
 
 
 ## How to train
-### 1. train the **FetchPush-v1**:
+1. train the **FetchPush-v1**:
 ```bash
 mpirun -np 16 python -u train.py --env-name='FetchPush-v1' 2>&1 | tee push.log
 ```
